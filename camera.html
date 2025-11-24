@@ -94,9 +94,20 @@
             <div class="text-center relative">
                 <video id="local-video" autoplay playsinline muted></video>
                 <div class="absolute bottom-4 right-4">
-                    <button onclick="app.switchCamera()" class="bg-black/50 backdrop-blur p-2 rounded-full text-white hover:bg-white/20">
+                    <button onclick="app.switchCamera()" class="bg-black/50 backdrop-blur p-2 rounded-full text-white hover:bg-white/20" title="切换摄像头">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                    </button>
+                    <button onclick="app.toggleMic()" id="btn-toggle-mic" class="bg-black/50 backdrop-blur p-2 rounded-full text-white hover:bg-white/20 ml-2" title="开关麦克风">
+                        <!-- Mic On Icon -->
+                        <svg id="icon-mic-on" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
+                        </svg>
+                        <!-- Mic Off Icon (Hidden) -->
+                        <svg id="icon-mic-off" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" clip-rule="evenodd" />
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
                         </svg>
                     </button>
                 </div>
@@ -157,7 +168,8 @@
             <!-- Video Display Area (Hidden initially) -->
             <div id="receiver-video-container" class="hidden text-center">
                 <div class="relative group">
-                    <video id="remote-video" autoplay playsinline class="w-full rounded-lg shadow-2xl border border-white/10"></video>
+                    <!-- Added controls attribute to allow volume control on PC -->
+                    <video id="remote-video" autoplay playsinline controls class="w-full rounded-lg shadow-2xl border border-white/10 bg-black"></video>
                     
                     <!-- Controls Overlay -->
                     <div class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex gap-2 opacity-0 group-hover:opacity-100 transition">
@@ -166,7 +178,7 @@
                         </button>
                     </div>
                 </div>
-                <p class="text-xs text-gray-500 mt-2">提示：全屏后可获得最佳画质，配合 OBS 窗口采集使用。</p>
+                <p class="text-xs text-gray-500 mt-2">提示：电脑端已启用默认播放声音。如果产生回音，请调节播放器音量或佩戴耳机。</p>
             </div>
 
         </div>
@@ -238,13 +250,17 @@
                 }
 
                 try {
+                    // Now requesting both Video and Audio
                     this.localStream = await navigator.mediaDevices.getUserMedia({ 
                         video: { 
                             facingMode: this.currentFacingMode,
                             width: { ideal: 1280 },
                             height: { ideal: 720 } 
                         }, 
-                        audio: false // Focusing on video only for this tool to avoid feedback if PC plays it
+                        audio: {
+                            echoCancellation: true,
+                            noiseSuppression: true
+                        }
                     });
                     
                     const videoEl = document.getElementById('local-video');
@@ -268,6 +284,21 @@
             async switchCamera() {
                 this.currentFacingMode = this.currentFacingMode === 'user' ? 'environment' : 'user';
                 await this.startCamera();
+            }
+
+            toggleMic() {
+                if (this.localStream) {
+                    const audioTrack = this.localStream.getAudioTracks()[0];
+                    if (audioTrack) {
+                        audioTrack.enabled = !audioTrack.enabled;
+                        
+                        // UI Update
+                        const isEnabled = audioTrack.enabled;
+                        document.getElementById('icon-mic-on').classList.toggle('hidden', !isEnabled);
+                        document.getElementById('icon-mic-off').classList.toggle('hidden', isEnabled);
+                        document.getElementById('btn-toggle-mic').classList.toggle('bg-red-500/20', !isEnabled);
+                    }
+                }
             }
 
             async createPeerConnection() {
