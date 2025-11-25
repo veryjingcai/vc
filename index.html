@@ -326,8 +326,15 @@
             // Actually, let's generate one locally to be short.
             const customId = generateShortId();
             
+            // Configure PeerJS with public STUN servers to ensure connectivity across different networks
             peer = new Peer(customId, {
-                debug: 2
+                debug: 2,
+                config: {
+                    iceServers: [
+                        { urls: 'stun:stun.l.google.com:19302' },
+                        { urls: 'stun:global.stun.twilio.com:3478' }
+                    ]
+                }
             });
 
             peer.on('open', (id) => {
@@ -509,22 +516,43 @@
 
         function handleStream(call) {
             call.on('stream', (remoteStream) => {
-                elStatus.innerText = '已连接';
+                elStatus.innerText = '已连接 - 正在缓冲...';
                 remoteVideo.srcObject = remoteStream;
                 
-                // Auto play handling
+                // Setup event listeners for debugging and status updates
+                remoteVideo.onloadedmetadata = () => {
+                    elStatus.innerText = `已连接 (视频流: ${remoteVideo.videoWidth}x${remoteVideo.videoHeight})`;
+                };
+
+                remoteVideo.onplaying = () => {
+                    const badge = document.getElementById('monitor-status-dot');
+                    const text = document.getElementById('monitor-status-text');
+                    if(badge && text) {
+                        badge.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
+                        text.innerText = '实时画面';
+                    }
+                };
+                
+                // Auto play handling with fallback
                 const playPromise = remoteVideo.play();
                 if (playPromise !== undefined) {
                     playPromise.catch(error => {
-                        console.log('Auto-play was prevented');
-                        // Show a UI element to let the user manually start playback
+                        console.warn('Auto-play prevented:', error);
+                        // Fallback: Mute and try again
+                        remoteVideo.muted = true;
+                        updateAudioIconState();
+                        
+                        remoteVideo.play().then(() => {
+                            showToast('自动播放已静音，请点击喇叭图标开启声音');
+                        }).catch(err => {
+                            elStatus.innerText = '播放失败，请点击屏幕';
+                        });
                     });
                 }
             });
         }
 
-        function toggleRemoteAudio() {
-            remoteVideo.muted = !remoteVideo.muted;
+        function updateAudioIconState() {
             const iconOn = document.getElementById('icon-remote-audio-on');
             const iconOff = document.getElementById('icon-remote-audio-off');
             
@@ -535,6 +563,11 @@
                 iconOn.classList.remove('hidden');
                 iconOff.classList.add('hidden');
             }
+        }
+
+        function toggleRemoteAudio() {
+            remoteVideo.muted = !remoteVideo.muted;
+            updateAudioIconState();
         }
 
         function toggleFullscreen() {
