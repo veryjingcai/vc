@@ -413,42 +413,96 @@
 
         // --- Camera Logic ---
         async function startLocalStream() {
+            // Helper function to try getUserMedia with specific constraints
+            const getMedia = async (constraints) => {
+                try {
+                    return await navigator.mediaDevices.getUserMedia(constraints);
+                } catch (err) {
+                    console.warn("Constraint attempt failed:", constraints, err);
+                    return null;
+                }
+            };
+
             try {
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                     throw new Error("浏览器不支持 getUserMedia API，或因非 HTTPS 环境被禁用。");
                 }
 
-                const constraints = {
+                // 1. Try Preferred Constraints (HD + Audio)
+                let stream = await getMedia({
                     video: {
                         facingMode: currentFacingMode,
                         width: { ideal: 1280 },
                         height: { ideal: 720 }
                     },
                     audio: true
-                };
-                
-                localStream = await navigator.mediaDevices.getUserMedia(constraints);
+                });
+
+                // 2. Fallback: Relaxed Video Constraints (Any Resolution) + Audio
+                if (!stream) {
+                    console.log("Falling back to standard resolution...");
+                    stream = await getMedia({
+                        video: { facingMode: currentFacingMode },
+                        audio: true
+                    });
+                }
+
+                // 3. Fallback: Minimal Constraints (Just Video, No Audio if audio failed)
+                if (!stream) {
+                    console.log("Falling back to video only...");
+                    try {
+                        // Sometimes audio permissions cause the whole thing to fail
+                        stream = await navigator.mediaDevices.getUserMedia({
+                            video: true,
+                            audio: false 
+                        });
+                        alert("注意：麦克风访问失败，仅启用视频模式。");
+                    } catch(e) {
+                        // stream remains null
+                    }
+                }
+
+                if (!stream) {
+                    throw new Error("无法获取任何媒体流，请检查权限设置。");
+                }
+
+                localStream = stream;
                 localVideo.srcObject = localStream;
                 
                 // Handle existing call replacement if switching cameras
-                if (currentCall) {
+                if (currentCall && currentCall.peerConnection) {
                     const videoTrack = localStream.getVideoTracks()[0];
                     const audioTrack = localStream.getAudioTracks()[0];
                     
-                    const senderVideo = currentCall.peerConnection.getSenders().find((s) => s.track.kind === "video");
-                    if (senderVideo) senderVideo.replaceTrack(videoTrack);
+                    const senders = currentCall.peerConnection.getSenders();
                     
-                    const senderAudio = currentCall.peerConnection.getSenders().find((s) => s.track.kind === "audio");
-                    if (senderAudio) senderAudio.replaceTrack(audioTrack);
+                    const senderVideo = senders.find((s) => s.track && s.track.kind === "video");
+                    if (senderVideo && videoTrack) senderVideo.replaceTrack(videoTrack);
+                    
+                    const senderAudio = senders.find((s) => s.track && s.track.kind === "audio");
+                    if (senderAudio && audioTrack) senderAudio.replaceTrack(audioTrack);
                 }
 
             } catch (err) {
                 console.error("Failed to get local stream", err);
-                let msg = "无法访问摄像头或麦克风: " + err.message;
+                
+                let msg = "启动失败: " + err.name;
+                
+                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
+                    msg = "权限被拒绝。请点击地址栏左侧的锁图标，重置网站权限，然后刷新页面。";
+                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
+                    msg = "未检测到摄像头或麦克风设备。";
+                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
+                    msg = "无法读取设备。可能是摄像头正在被其他应用（如微信、相机）占用，请先关闭它们。";
+                } else if (err.name === 'OverconstrainedError') {
+                    msg = "摄像头不支持所请求的分辨率。";
+                }
+
                 if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                    msg += "\n\n检测到非 HTTPS 环境，浏览器通常会阻止摄像头访问。请尝试使用 HTTPS 或 localhost。";
+                    msg += "\n\n检测到非 HTTPS 环境，现代浏览器禁止访问摄像头。请使用 HTTPS。";
                     document.getElementById('https-warning').classList.remove('hidden');
                 }
+                
                 alert(msg);
             }
         }
