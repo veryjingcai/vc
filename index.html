@@ -29,6 +29,7 @@
             width: 100%;
             height: 100%;
             object-fit: contain;
+            display: block; /* 修复布局间隙 */
         }
         .status-badge {
             position: absolute;
@@ -75,12 +76,25 @@
         .hidden {
             display: none !important;
         }
+        /* 调试覆盖层 */
+        #debug-info {
+            position: absolute;
+            top: 40px;
+            left: 10px;
+            font-family: monospace;
+            color: #0f0;
+            background: rgba(0,0,0,0.7);
+            padding: 5px;
+            font-size: 10px;
+            pointer-events: none;
+            z-index: 5;
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
     <!-- Header -->
-    <header class="bg-white shadow-sm p-4">
+    <header class="bg-white shadow-sm p-4 z-20">
         <div class="container mx-auto flex justify-between items-center">
             <h1 class="text-xl font-bold text-indigo-600 flex items-center gap-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -169,6 +183,7 @@
                 <video id="local-video" autoplay playsinline muted></video>
                 <div class="controls">
                     <button class="control-btn" onclick="toggleAudio()" id="btn-audio">
+                        <!-- Audio Icon -->
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
                         </svg>
@@ -207,6 +222,10 @@
                         <div class="w-2 h-2 rounded-full bg-emerald-500" id="monitor-status-dot"></div>
                         <span id="monitor-status-text">已连接</span>
                     </div>
+                    
+                    <!-- Debug Info Overlay -->
+                    <div id="debug-info">初始化中...</div>
+                    
                     <video id="remote-video" autoplay playsinline muted></video>
                     <div class="controls">
                         <button class="control-btn" onclick="toggleRemoteAudio()" id="btn-remote-audio">
@@ -230,129 +249,8 @@
                         </button>
                     </div>
                 </div>
-                <p class="text-center text-gray-500 mt-4 text-sm">提示：如果听不到声音，请检查电脑是否静音或点击上方喇叭图标</p>
-            </div>
-        </div>
-            <h2 class="text-2xl font-bold text-gray-800">选择设备角色</h2>
-            <p class="text-gray-500">请选择当前设备是作为摄像头（发送端）还是作为监视器（接收端）。</p>
-            
-            <div class="grid grid-cols-1 gap-4">
-                <button onclick="startCameraMode()" class="group relative flex items-center justify-center p-4 border-2 border-indigo-100 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all duration-200">
-                    <div class="flex items-center gap-4">
-                        <div class="bg-indigo-100 p-3 rounded-full group-hover:bg-indigo-200 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-indigo-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                        </div>
-                        <div class="text-left">
-                            <div class="font-bold text-gray-800">我是手机 (摄像头)</div>
-                            <div class="text-xs text-gray-500">采集画面和声音发送给电脑</div>
-                        </div>
-                    </div>
-                </button>
-
-                <button onclick="startMonitorMode()" class="group relative flex items-center justify-center p-4 border-2 border-emerald-100 rounded-xl hover:border-emerald-500 hover:bg-emerald-50 transition-all duration-200">
-                    <div class="flex items-center gap-4">
-                        <div class="bg-emerald-100 p-3 rounded-full group-hover:bg-emerald-200 transition-colors">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                            </svg>
-                        </div>
-                        <div class="text-left">
-                            <div class="font-bold text-gray-800">我是电脑 (接收端)</div>
-                            <div class="text-xs text-gray-500">接收并显示手机画面</div>
-                        </div>
-                    </div>
-                </button>
-            </div>
-        </div>
-
-        <!-- Step 2: Camera Mode UI -->
-        <div id="camera-ui" class="hidden w-full max-w-4xl flex flex-col items-center space-y-6">
-            <div class="bg-white p-6 rounded-2xl shadow-lg w-full max-w-md text-center">
-                <h3 class="text-lg font-bold text-gray-800 mb-2">等待连接</h3>
-                <p class="text-sm text-gray-500 mb-4">在电脑端输入下方ID或扫描二维码进行连接</p>
-                
-                <div class="bg-gray-100 p-4 rounded-lg mb-4 font-mono text-xl tracking-wider select-all cursor-pointer" onclick="copyToClipboard(this.innerText)" title="点击复制">
-                    <span id="my-peer-id">正在生成ID...</span>
-                </div>
-
-                <div id="qrcode" class="flex justify-center mb-4 p-2 bg-white border border-gray-200 rounded-lg inline-block"></div>
-                
-                <div class="text-xs text-gray-400">保持此页面开启，不要锁屏</div>
-            </div>
-
-            <div class="video-container">
-                <div class="status-badge flex items-center gap-2">
-                    <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse" id="camera-status-dot"></div>
-                    <span id="camera-status-text">本地预览</span>
-                </div>
-                <video id="local-video" autoplay playsinline muted></video>
-                <div class="controls">
-                    <button class="control-btn" onclick="toggleAudio()" id="btn-audio">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z" />
-                        </svg>
-                    </button>
-                    <button class="control-btn" onclick="switchCamera()" id="btn-switch">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                        </svg>
-                    </button>
-                    <button class="control-btn active" onclick="stopStream()">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 3: Monitor Mode UI -->
-        <div id="monitor-ui" class="hidden w-full max-w-4xl flex flex-col items-center space-y-6">
-            <div id="connect-form" class="bg-white p-6 rounded-2xl shadow-lg w-full max-w-md text-center space-y-4">
-                <h3 class="text-lg font-bold text-gray-800">连接手机摄像头</h3>
-                <p class="text-sm text-gray-500">输入手机端显示的ID进行连接</p>
-                
-                <div class="flex gap-2">
-                    <input type="text" id="remote-peer-id" placeholder="输入手机端ID" class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase">
-                    <button onclick="connectToPeer()" class="px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-medium transition-colors">
-                        连接
-                    </button>
-                </div>
-            </div>
-
-            <div id="monitor-video-wrapper" class="hidden w-full">
-                <div class="video-container">
-                    <div class="status-badge flex items-center gap-2">
-                        <div class="w-2 h-2 rounded-full bg-emerald-500" id="monitor-status-dot"></div>
-                        <span id="monitor-status-text">已连接</span>
-                    </div>
-                    <video id="remote-video" autoplay playsinline muted></video>
-                    <div class="controls">
-                        <button class="control-btn" onclick="toggleRemoteAudio()" id="btn-remote-audio">
-                            <svg id="icon-remote-audio-on" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                            </svg>
-                            <svg id="icon-remote-audio-off" xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 hidden" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" />
-                            </svg>
-                        </button>
-                        <button class="control-btn" onclick="toggleFullscreen()">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
-                            </svg>
-                        </button>
-                        <button class="control-btn active" onclick="disconnect()">
-                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                            </svg>
-                        </button>
-                    </div>
-                </div>
-                <p class="text-center text-gray-500 mt-4 text-sm">提示：如果听不到声音，请检查电脑是否静音或点击上方喇叭图标</p>
+                <p class="text-center text-gray-500 mt-4 text-sm">提示：视频默认静音。请点击上方<strong class="text-gray-800">喇叭图标</strong>开启声音。</p>
+                <p id="connection-tip" class="text-center text-xs text-red-400 mt-1 hidden">画面似乎卡住了？请点击“断开”重新连接。</p>
             </div>
         </div>
 
@@ -382,10 +280,10 @@
         const localVideo = document.getElementById('local-video');
         const remoteVideo = document.getElementById('remote-video');
         const peerIdDisplay = document.getElementById('my-peer-id');
+        const debugInfo = document.getElementById('debug-info');
         
         // --- Helper Functions ---
         function generateShortId() {
-            // Create a random 6-character ID (easier to type)
             return Math.random().toString(36).substr(2, 6).toUpperCase();
         }
 
@@ -428,7 +326,7 @@
                 peer.destroy();
                 peer = null;
             }
-            location.reload(); // Simple reset
+            location.reload();
         }
         
         function disconnect() {
@@ -439,18 +337,11 @@
 
         // --- PeerJS Initialization ---
         function initPeer(role) {
-            // Use a custom ID if possible, but PeerJS cloud has collisions, so we use random.
-            // However, to make it user friendly, we try to use the short ID logic.
-            // Since we can't guarantee unique short IDs on public server easily without retry logic,
-            // We will let PeerJS assign one if we fail, but let's try a random short string first.
-            
-            // For simplicity in this demo, we'll just ask PeerJS for an ID or use a prefix.
-            // Actually, let's generate one locally to be short.
             const customId = generateShortId();
             
-            // Configure PeerJS with public STUN servers to ensure connectivity across different networks
+            // 配置公共 STUN 服务器以穿透 NAT
             peer = new Peer(customId, {
-                debug: 2,
+                debug: 1,
                 config: {
                     iceServers: [
                         { urls: 'stun:stun.l.google.com:19302' },
@@ -467,32 +358,26 @@
                 if (role === 'camera') {
                     peerIdDisplay.innerText = id;
                     new QRCode(document.getElementById("qrcode"), {
-                        text: window.location.href.split('?')[0] + '?connect=' + id, // Hypothetical auto-connect link logic
+                        text: window.location.href.split('?')[0] + '?connect=' + id,
                         width: 128,
                         height: 128
                     });
                     startLocalStream();
                 } else {
-                    // Monitor mode initialized
-                    // Check URL params for auto connect
                     const urlParams = new URLSearchParams(window.location.search);
                     const targetId = urlParams.get('connect');
                     if (targetId) {
                         document.getElementById('remote-peer-id').value = targetId;
-                        // Removing auto-connect immediately to prevent loop issues, user must click connect
                     }
                 }
             });
 
             peer.on('call', (call) => {
-                // Camera Mode: Auto-answer to act like a real webcam device
-                // Security relies on the random Peer ID being secret
                 if (role === 'camera') {
                     showToast('正在建立连接...');
                     call.answer(localStream); 
                     currentCall = call;
                     
-                    // Update UI to show live status
                     const badge = document.getElementById('camera-status-dot');
                     const text = document.getElementById('camera-status-text');
                     if(badge && text) {
@@ -500,7 +385,6 @@
                         text.innerText = '正在传输';
                     }
                     
-                    // Reset status on close
                     call.on('close', () => {
                         if(badge && text) {
                             badge.className = 'w-2 h-2 rounded-full bg-red-500 animate-pulse';
@@ -509,49 +393,40 @@
                         showToast('连接已断开');
                     });
                 } else {
-                    // Monitor receiving a call (unlikely in this flow, but handled)
+                    // 监视端接听 (逻辑上不太会有，但为了鲁棒性)
                     call.answer();
                     handleStream(call);
                 }
             });
             
-            peer.on('connection', (c) => {
-                // Data connection handling if needed
-                conn = c;
-                conn.on('open', () => {
-                    showToast('设备已配对');
-                });
-            });
-
             peer.on('error', (err) => {
                 console.error(err);
-                if (err.type === 'unavailable-id') {
-                    alert('ID 生成冲突，请刷新重试');
-                } else {
-                    alert('连接错误: ' + err.type);
-                }
+                alert('连接错误: ' + err.type + '\n' + err.message);
             });
         }
 
-        // --- Camera Logic ---
+        // --- Camera Logic (Enhanced Fallback) ---
         async function startLocalStream() {
-            // Helper function to try getUserMedia with specific constraints
             const getMedia = async (constraints) => {
                 try {
                     return await navigator.mediaDevices.getUserMedia(constraints);
                 } catch (err) {
-                    console.warn("Constraint attempt failed:", constraints, err);
+                    console.warn("尝试约束失败:", constraints, err);
                     return null;
                 }
             };
 
+            let stream = null;
+            let usedConstraints = "";
+
             try {
                 if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                    throw new Error("浏览器不支持 getUserMedia API，或因非 HTTPS 环境被禁用。");
+                    throw new Error("浏览器不支持摄像头访问，或非HTTPS环境。");
                 }
 
-                // 1. Try Preferred Constraints (HD + Audio)
-                let stream = await getMedia({
+                // 1. 尝试高清 + 音频 + 指定摄像头
+                console.log("尝试高清模式...");
+                stream = await getMedia({
                     video: {
                         facingMode: currentFacingMode,
                         width: { ideal: 1280 },
@@ -559,95 +434,77 @@
                     },
                     audio: true
                 });
-
-                // 2. Fallback: Relaxed Video Constraints (Any Resolution) + Audio
+                
+                // 2. 尝试普通清晰度 + 音频 + 指定摄像头
                 if (!stream) {
-                    console.log("Falling back to standard resolution...");
+                    console.log("降级到普通清晰度...");
                     stream = await getMedia({
                         video: { facingMode: currentFacingMode },
                         audio: true
                     });
                 }
 
-                // 3. Fallback: Minimal Constraints (Just Video, No Audio if audio failed)
+                // 3. 关键修正：尝试 仅视频 (无音频) + 指定摄像头
+                // 这是为了解决“麦克风被占用”导致整个流失败，且依然想用后置摄像头的情况
                 if (!stream) {
-                    console.log("Falling back to video only...");
-                    try {
-                        // IMPORTANT: Still try to respect facingMode
-                        stream = await getMedia({
-                            video: { facingMode: currentFacingMode },
-                            audio: false 
-                        });
-                        if (stream) alert("注意：麦克风访问失败，仅启用视频模式。");
-                    } catch(e) { /* ignore */ }
-                    
-                    if (!stream) {
-                        // Absolute fallback to anything video
-                        try {
-                            stream = await navigator.mediaDevices.getUserMedia({
-                                video: true,
-                                audio: false
-                            });
-                            alert("注意：无法切换到后置摄像头，使用默认摄像头。麦克风访问失败。");
-                        } catch(ex) { /* ignore */ }
-                    }
+                    console.log("音频获取失败，尝试仅视频 (保留前后置设置)...");
+                    stream = await getMedia({
+                        video: { facingMode: currentFacingMode },
+                        audio: false
+                    });
+                    if (stream) showToast('警告：麦克风无法访问，仅传输画面');
+                }
+
+                // 4. 最低保底：任意视频 + 无音频 (可能会变回前置，没办法了)
+                if (!stream) {
+                    console.log("无法指定摄像头，尝试最低保底...");
+                    stream = await getMedia({
+                        video: true,
+                        audio: false
+                    });
+                    if (stream) showToast('警告：无法切换摄像头，已回退到默认');
                 }
 
                 if (!stream) {
-                    throw new Error("无法获取任何媒体流，请检查权限设置。");
+                    throw new Error("所有尝试均失败。请检查权限或关闭其他占用相机的应用。");
                 }
 
                 localStream = stream;
                 localVideo.srcObject = localStream;
-                
-                // Handle existing call replacement if switching cameras
+
+                // 更新通话流
                 if (currentCall && currentCall.peerConnection) {
-                    const videoTrack = localStream.getVideoTracks()[0];
-                    const audioTrack = localStream.getAudioTracks()[0];
-                    
                     const senders = currentCall.peerConnection.getSenders();
+                    const newVideoTrack = localStream.getVideoTracks()[0];
+                    const newAudioTrack = localStream.getAudioTracks()[0];
+
+                    if (newVideoTrack) {
+                        const sender = senders.find(s => s.track && s.track.kind === 'video');
+                        if (sender) sender.replaceTrack(newVideoTrack);
+                    }
                     
-                    const senderVideo = senders.find((s) => s.track && s.track.kind === "video");
-                    if (senderVideo && videoTrack) senderVideo.replaceTrack(videoTrack);
-                    
-                    const senderAudio = senders.find((s) => s.track && s.track.kind === "audio");
-                    if (senderAudio && audioTrack) senderAudio.replaceTrack(audioTrack);
+                    // 如果之前有音频轨道现在没有了，或者反之，PeerJS处理起来比较麻烦。
+                    // 简单的 replaceTrack 适用于轨道存在的情况。
+                    // 如果这次没有音频轨道，就不替换了。
+                    if (newAudioTrack) {
+                         const sender = senders.find(s => s.track && s.track.kind === 'audio');
+                         if (sender) sender.replaceTrack(newAudioTrack);
+                    }
                 }
 
             } catch (err) {
-                console.error("Failed to get local stream", err);
-                
-                let msg = "启动失败: " + err.name;
-                
-                if (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError') {
-                    msg = "权限被拒绝。请点击地址栏左侧的锁图标，重置网站权限，然后刷新页面。";
-                } else if (err.name === 'NotFoundError' || err.name === 'DevicesNotFoundError') {
-                    msg = "未检测到摄像头或麦克风设备。";
-                } else if (err.name === 'NotReadableError' || err.name === 'TrackStartError') {
-                    msg = "无法读取设备。可能是摄像头正在被其他应用（如微信、相机）占用，请先关闭它们。";
-                } else if (err.name === 'OverconstrainedError') {
-                    msg = "摄像头不支持所请求的分辨率。";
-                }
-
-                if (window.location.protocol !== 'https:' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                    msg += "\n\n检测到非 HTTPS 环境，现代浏览器禁止访问摄像头。请使用 HTTPS。";
-                    document.getElementById('https-warning').classList.remove('hidden');
-                }
-                
-                alert(msg);
+                console.error("Final Error", err);
+                alert("无法启动摄像头: " + err.message);
             }
         }
 
         function switchCamera() {
             if (!localStream) return;
-            
-            // Stop current tracks
+            // 停止当前流
             localStream.getTracks().forEach(track => track.stop());
-            
-            // Toggle mode
+            // 切换状态
             currentFacingMode = currentFacingMode === 'user' ? 'environment' : 'user';
-            
-            // Restart stream
+            // 重启流
             startLocalStream();
         }
 
@@ -664,11 +521,13 @@
                         btn.classList.add('bg-red-500', 'border-red-500');
                         btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2" /></svg>';
                     }
+                } else {
+                    showToast('当前模式无音频');
                 }
             }
         }
 
-        // --- Monitor Logic ---
+        // --- Monitor Logic (Enhanced) ---
         function connectToPeer() {
             const remoteId = document.getElementById('remote-peer-id').value.trim();
             if (!remoteId) {
@@ -679,61 +538,64 @@
             document.getElementById('connect-form').classList.add('hidden');
             document.getElementById('monitor-video-wrapper').classList.remove('hidden');
             elStatus.innerText = '正在连接...';
+            debugInfo.innerText = "正在呼叫 " + remoteId + "...";
 
-            // Monitor calls Camera
-            const call = peer.call(remoteId, null, {
-                metadata: { type: 'monitor-request' }
+            const call = peer.call(remoteId, null);
+            currentCall = call;
+            
+            // 监听流
+            call.on('stream', (remoteStream) => {
+                console.log("收到流 stream id:", remoteStream.id);
+                debugInfo.innerText = "收到流信号，准备播放...";
+                
+                // 强制设置
+                remoteVideo.srcObject = remoteStream;
+                remoteVideo.muted = true; // 必须静音才能自动播放
+                
+                const playPromise = remoteVideo.play();
+                if (playPromise !== undefined) {
+                    playPromise.then(() => {
+                        debugInfo.innerText = "播放成功 (静音中)";
+                    }).catch(error => {
+                        console.error("Auto-play error:", error);
+                        debugInfo.innerText = "自动播放被拦截: " + error.name;
+                        showToast("请点击屏幕开始播放视频");
+                    });
+                }
+
+                // 监控视频状态
+                remoteVideo.onloadedmetadata = () => {
+                    debugInfo.innerText = `元数据加载: ${remoteVideo.videoWidth}x${remoteVideo.videoHeight}`;
+                    elStatus.innerText = `已连接 (${remoteVideo.videoWidth}x${remoteVideo.videoHeight})`;
+                };
+                
+                remoteVideo.onresize = () => {
+                    debugInfo.innerText = `分辨率变更: ${remoteVideo.videoWidth}x${remoteVideo.videoHeight}`;
+                };
+                
+                // 周期性检查是否有流量
+                setInterval(() => {
+                    if (remoteVideo.videoWidth > 0) {
+                        // 正常
+                    } else {
+                        // 黑屏
+                    }
+                }, 2000);
             });
             
-            currentCall = call;
-            handleStream(call);
-            
             call.on('close', () => {
-                alert('通话已结束');
+                alert('对方已断开');
                 location.reload();
             });
             
             call.on('error', (err) => {
-                alert('连接失败: ' + err);
-                location.reload();
+                alert('连接中断: ' + err);
+                debugInfo.innerText = "错误: " + err;
             });
         }
 
-        function handleStream(call) {
-            call.on('stream', (remoteStream) => {
-                elStatus.innerText = '已连接 - 正在缓冲...';
-                remoteVideo.srcObject = remoteStream;
-                
-                // Force mute initially to allow autoplay policy to pass
-                remoteVideo.muted = true;
-                updateAudioIconState();
-                
-                // Setup event listeners for debugging and status updates
-                remoteVideo.onloadedmetadata = () => {
-                    elStatus.innerText = `已连接 (分辨率: ${remoteVideo.videoWidth}x${remoteVideo.videoHeight})`;
-                    // Try to play as soon as metadata loads
-                    const playPromise = remoteVideo.play();
-                    if (playPromise !== undefined) {
-                        playPromise.catch(error => {
-                            console.warn('Autoplay failed:', error);
-                            elStatus.innerText = '点击屏幕播放视频';
-                        });
-                    }
-                };
-
-                remoteVideo.onplaying = () => {
-                    const badge = document.getElementById('monitor-status-dot');
-                    const text = document.getElementById('monitor-status-text');
-                    if(badge && text) {
-                        badge.className = 'w-2 h-2 rounded-full bg-emerald-500 animate-pulse';
-                        text.innerText = '实时画面';
-                    }
-                    showToast('已连接。如果无声，请点击喇叭图标。');
-                };
-            });
-        }
-
-        function updateAudioIconState() {
+        function toggleRemoteAudio() {
+            remoteVideo.muted = !remoteVideo.muted;
             const iconOn = document.getElementById('icon-remote-audio-on');
             const iconOff = document.getElementById('icon-remote-audio-off');
             
@@ -743,36 +605,31 @@
             } else {
                 iconOn.classList.remove('hidden');
                 iconOff.classList.add('hidden');
+                // 尝试恢复音量
+                remoteVideo.volume = 1.0;
             }
-        }
-
-        function toggleRemoteAudio() {
-            remoteVideo.muted = !remoteVideo.muted;
-            updateAudioIconState();
         }
 
         function toggleFullscreen() {
             const elem = document.getElementById('monitor-video-wrapper');
             if (!document.fullscreenElement) {
                 elem.requestFullscreen().catch(err => {
-                    alert(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    console.log(err);
                 });
             } else {
                 document.exitFullscreen();
             }
         }
 
-        // --- Auto-initialization based on URL ---
+        // --- Auto-initialization ---
         window.addEventListener('DOMContentLoaded', () => {
-            // Check for Secure Context
-            if (!window.isSecureContext) {
+            // 检查HTTPS
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
                 document.getElementById('https-warning').classList.remove('hidden');
             }
 
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('connect')) {
-                // If URL has 'connect' param, assume user wants to be a monitor/receiver
-                // Pre-fill happens inside initPeer, but we need to trigger the UI switch
                 startMonitorMode();
             }
         });
